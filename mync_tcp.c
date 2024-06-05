@@ -3,19 +3,39 @@
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
-void handle_tcp_connection(int sockfd) {
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+
+// Function to handle TCP server input redirection
+void handle_tcp_input(int sockfd, FILE *output) {
     char buffer[1024];
     int n;
 
-    // Read a single message from the connection and print it
-    if ((n = read(sockfd, buffer, 1024)) > 0) {
+    // Read from the connection and write to output
+    while ((n = read(sockfd, buffer, sizeof(buffer) - 1)) > 0) {
         buffer[n] = '\0';
-        printf("Received: %s\n", buffer);
+        fprintf(output, "%s", buffer);
+        fflush(output);
     }
 }
 
-void start_tcp_server(int port) {
+// Function to handle TCP client output redirection
+void handle_tcp_output(int sockfd, FILE *input) {
+    char buffer[1024];
+
+    // Read from input and write to the connection
+    while (fgets(buffer, sizeof(buffer), input) != NULL) {
+        send(sockfd, buffer, strlen(buffer), 0);
+    }
+}
+
+void start_tcp_server(int port, FILE *input, FILE *output) {
     int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
@@ -47,12 +67,21 @@ void start_tcp_server(int port) {
         exit(EXIT_FAILURE);
     }
 
-    handle_tcp_connection(new_socket);
+    // Handle input and output redirection
+    if (input) {
+        dup2(new_socket, STDIN_FILENO);
+        handle_tcp_input(new_socket, output);
+    }
+    if (output) {
+        dup2(new_socket, STDOUT_FILENO);
+        handle_tcp_output(new_socket, input);
+    }
+
     close(new_socket);
     close(server_fd);
 }
 
-void start_tcp_client(const char *host, int port) {
+void start_tcp_client(const char *host, int port, FILE *input, FILE *output) {
     int sock = 0;
     struct sockaddr_in serv_addr;
     char buffer[1024] = {0};
@@ -75,31 +104,51 @@ void start_tcp_client(const char *host, int port) {
         exit(EXIT_FAILURE);
     }
 
-    // Read a single message from stdin and send it
-    if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
-        send(sock, buffer, strlen(buffer), 0);
+    // Handle input and output redirection
+    if (input) {
+        dup2(sock, STDIN_FILENO);
+        handle_tcp_input(sock, output);
+    }
+    if (output) {
+        dup2(sock, STDOUT_FILENO);
+        handle_tcp_output(sock, input);
     }
 
     close(sock);
 }
 
 int main(int argc, char *argv[]) {
-    //Check if bad syntax exit(1)
-    if (argc < 3 || strcmp(argv[1], "-i") != 0 || strcmp(argv[1], "-o") != 0 || strcmp(argv[1], "-b") != 0) {
-        printf("Error: bad syntax");
-        fprintf(stderr, "Usage: %s -i TCPS<PORT> | <-i/-o/-b> TCPClocalhost<PORT>\n", argv[0]);
+    // Check if bad syntax, exit(1)
+    if (argc < 5 || strcmp(argv[1], "-e") != 0) {
+        printf("Error: bad syntax\n");
+        fprintf(stderr, "Usage: %s -e <command> -i/-o/-b TCPS<PORT> | TCPC<IP,PORT>\n", argv[0]);
         exit(1);
     }
 
-    char *flag = argv[1];
-    char *param = argv[2];
+    //For adding the ./ to run the program
+    char *run = "./";
+    int size = (sizeof(argv[2]) + sizeof(argv[3])) + 2;
+    char *cmd = (char*)malloc(sizeof(char)*size);
+    //Add the ./ befor the command
+    strcpy(cmd,run);
+    //Attach the command after the ./ run command
+    strcat(cmd,argv[2]);
+    strcat(cmd,argv[3]);
 
+    char *flag = argv[4];
+    char *param = argv[5];
+
+    // Execute the command with input/output redirection
     if (strncmp(flag, "-i", 2) == 0 && strncmp(param, "TCPS", 4) == 0) {
         int port = atoi(param + 4);
-        start_tcp_server(port);
-    } else if (strncmp(flag, "-o", 2) == 0 && strncmp(param, "TCPClocalhost", 12) == 0) {
-        int port = atoi(param + 12);
-        start_tcp_client("127.0.0.1", port);
+        start_tcp_server(port, NULL, stdout);
+    } else if (strncmp(flag, "-o", 2) == 0 && strncmp(param, "TCPC", 4) == 0) {
+        char *host = strtok(param + 4, ",");
+        int port = atoi(strtok(NULL, ","));
+        start_tcp_client(host, port, stdin, NULL);
+    } else if (strncmp(flag, "-b", 2) == 0 && strncmp(param, "TCPS", 4) == 0) {
+        int port = atoi(param + 4);
+        start_tcp_server(port, stdin, stdout);
     } else {
         fprintf(stderr, "Unsupported flag or parameter\n");
         exit(1);
