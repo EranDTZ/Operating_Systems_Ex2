@@ -84,8 +84,10 @@ void start_tcp_client(const char *host, int port) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s -i TCPS<PORT> | -o TCPClocalhost<PORT>\n", argv[0]);
+    //Check if bad syntax exit(1)
+    if (argc < 3 || strcmp(argv[1], "-i") != 0 || strcmp(argv[1], "-o") != 0 || strcmp(argv[1], "-b") != 0) {
+        printf("Error: bad syntax");
+        fprintf(stderr, "Usage: %s -i TCPS<PORT> | <-i/-o/-b> TCPClocalhost<PORT>\n", argv[0]);
         exit(1);
     }
 
