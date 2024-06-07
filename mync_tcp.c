@@ -6,6 +6,11 @@
 #include <netdb.h>
 
 
+int system_run_ttt(char *cmd)
+{
+    system(cmd);
+    return 0;
+}
 
 
 int tcpServer(int port)
