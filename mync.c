@@ -173,6 +173,11 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-
+//To print to server
 // ./mync -e “ttt 123456789” -i TCPS4450
-// ./mync -e "ttt 123456789" -o TCPClocalhost,4450
+// nc localhost 4450
+
+//To print to client
+// ./mync -e “ttt 123456789” -b TCPS4450
+// nc localhost 4450
+
