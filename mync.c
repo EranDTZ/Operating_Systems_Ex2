@@ -89,7 +89,7 @@ void run_ttt(int input_fd, int output_fd, char *strategy) {
 
 int main(int argc, char *argv[]) {
     int opt;
-    int server_mode = 0, client_mode = 0, both_mode = 0;
+    int server_mode = 0, server_o_mode =0, client_mode = 0, both_mode = 0;
     int input_port = 0, output_port = 0;
     char output_host[BUFFER_SIZE];
     char *exec_command = NULL;
@@ -106,8 +106,9 @@ int main(int argc, char *argv[]) {
                 input_port = atoi(optarg + 4); // Extract port from TCPS#####
                 break;
             case 'o':
-                client_mode = 1;
-                sscanf(optarg, "TCPClocalhost,%d", &output_port); // Extract port
+                server_o_mode = 1;
+                // sscanf(optarg, "TCPClocalhost,%d", &output_port); // Extract port
+                input_port = atoi(optarg + 4); // Extract port from TCPC#####
                 strcpy(output_host, "127.0.0.1");
                 break;
             case 'b':
@@ -128,7 +129,7 @@ int main(int argc, char *argv[]) {
     int server_fd = -1, client_fd = -1, new_socket = -1;
     pid_t pid;
 
-    if (server_mode || both_mode) {
+    if (server_mode || both_mode || server_o_mode) {
         server_fd = create_tcp_server(input_port);
 
         // Wait for a client to connect
@@ -145,8 +146,8 @@ int main(int argc, char *argv[]) {
         // Child process
         if (server_mode && !both_mode) {
             run_ttt(new_socket, STDOUT_FILENO, strategy);
-        } else if (client_mode && !both_mode) {
-            run_ttt(STDIN_FILENO, client_fd, strategy);
+        } else if (server_o_mode && !both_mode) {
+            run_ttt(new_socket, new_socket, strategy);
         } else if (both_mode) {
             run_ttt(new_socket, new_socket, strategy);
         } else {
@@ -192,5 +193,3 @@ int main(int argc, char *argv[]) {
 // nc localhost 4450
 
 /*------------------------------------------------------------------------------------------------------------------------------*/
-
-
