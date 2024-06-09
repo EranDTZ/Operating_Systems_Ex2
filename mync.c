@@ -72,7 +72,7 @@ int create_tcp_client(const char *hostname, int port) {
     return client_fd;
 }
 
-void run_ttt(int input_fd, int output_fd) {
+void run_ttt(int input_fd, int output_fd, char *strategy) {
     // Redirect stdin and stdout
     if (dup2(input_fd, STDIN_FILENO) == -1) {
         handle_error("dup2 input_fd");
@@ -82,7 +82,7 @@ void run_ttt(int input_fd, int output_fd) {
     }
 
     // Execute the ttt program
-    execlp("./ttt", "ttt", "123456789",(char *)NULL);
+    execlp("./ttt", "ttt", strategy,(char *)NULL);
     handle_error("execlp ttt failed");
 }
 
@@ -93,6 +93,8 @@ int main(int argc, char *argv[]) {
     int input_port = 0, output_port = 0;
     char output_host[BUFFER_SIZE];
     char *exec_command = NULL;
+    char *strategy = argv[3];
+    strategy[9] = '\0';
 
     while ((opt = getopt(argc, argv, "e:i:o:b:")) != -1) {
         switch (opt) {
@@ -142,15 +144,15 @@ int main(int argc, char *argv[]) {
     if ((pid = fork()) == 0) {
         // Child process
         if (server_mode && !both_mode) {
-            run_ttt(new_socket, STDOUT_FILENO);
+            run_ttt(new_socket, STDOUT_FILENO, strategy);
         } else if (client_mode && !both_mode) {
-            run_ttt(STDIN_FILENO, client_fd);
+            run_ttt(STDIN_FILENO, client_fd, strategy);
         } else if (both_mode) {
-            run_ttt(new_socket, new_socket);
+            run_ttt(new_socket, new_socket, strategy);
         } else {
-            // // Default execution without redirection
-            // execlp("./ttt", "ttt", "123456789", (char *)NULL);
-            // handle_error("execlp ttt failed");
+            // Default execution without redirection
+            execlp("./ttt", "ttt", "strategy", (char *)NULL);
+            handle_error("execlp ttt failed");
         }
     } else if (pid > 0) {
         // Parent process: Wait for child to complete
@@ -180,4 +182,15 @@ int main(int argc, char *argv[]) {
 //To print to client
 // ./mync -e “ttt 123456789” -b TCPS4450
 // nc localhost 4450
+
+//To print to server
+// ./mync -e “ttt 123456789” -i TCPS4450
+// nc localhost 4450
+
+//To print to client
+// ./mync -e “ttt 123456789” -b TCPS4450
+// nc localhost 4450
+
+/*------------------------------------------------------------------------------------------------------------------------------*/
+
 
